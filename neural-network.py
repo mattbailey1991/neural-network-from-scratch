@@ -1,6 +1,3 @@
-"""Feed forward neural network implemented from scratch. 
-Follows the tutorial from http://neuralnetworksanddeeplearning.com"""
-
 import random
 import numpy as np
 
@@ -167,11 +164,14 @@ def activation_deriv(z, activation_function):
 
     # Calculate derivative
     if activation_function == "relu":
-        if z > 0:
-            return 1
-        else:
-            return 0
-        
+        def simple_relu_deriv(z):                
+            if z > 0:
+                return 1
+            else:
+                return 0
+        vec_relu_deriv = np.vectorize(simple_relu_deriv, otypes=[float])
+        return vec_relu_deriv(z)
+
     if activation_function == "sigmoid":
         return sigmoid(z)*(1-sigmoid(z))
     
