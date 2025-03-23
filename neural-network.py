@@ -6,12 +6,16 @@ import numpy as np
 
 class NeuralNetwork():
     
-    def __init__(self, shape):
+    def __init__(self, shape, activation_function):
         
         """Shape of the neural network, defined as an array of layer sizes. 
         For example, a neural network with five input variables, a hidden layer with three neurons, and two output nodes would be: [5,3,2]"""
         self.shape = shape
-        self.layer_count = len(self.shape)
+        
+        """Assigns and validates activation function"""
+        if activation_function not in ["relu","sigmoid"]:
+            raise ValueError("Activation function must be 'relu' or 'sigmoid'")
+        self.activation_function = activation_function
 
         """Initialises random biases using normal distribution. 
         The bias for neuron j in layer m is located at self.biases[m][j]"""
@@ -23,26 +27,38 @@ class NeuralNetwork():
         
         return
 
-    def feedforward(self, input, activation_function):
+
+    def feedforward(self, input, a_z_matrix = False):
         """Feeds an input through the neural network to obtain a predicted output. 
         Input shape must be (self.shape[0],1).
         Activation function can be relu or sigmoid.
         Activation of each layer m is given by a(m) = f(wa(m-1) + b)
-        Returns a shape (self.shape[-1],1) output vector"""
-        # Validate activation function
-        if activation_function not in ["relu","sigmoid"]:
-            raise ValueError("Activation function must be 'relu' or 'sigmoid'")
+        Returns a shape (self.shape[-1],1) output vector
+        Alternatively, if a_z_matrix = True, returns a tuple with (output vector, z_matrix, activation_matrix)"""
         
-        # Feed forward input through each layer of the neural network
+        # Initialise activation and z/a storage
         activation = input
-        for bias, weight in zip(self.biases, self.weights):
-            if activation_function == "relu":
-                activation = relu(np.dot(weight, activation) + bias)
-            elif activation_function == "sigmoid":
-                activation = sigmoid(np.dot(weight, activation) + bias)
+        if a_z_matrix:
+            activation_matrix = [activation]
+            z_matrix = []
         
-        # Return the output activation
-        return activation
+        # Feed forward through each layer of the neural network, saving z and a values
+        for bias, weight in zip(self.biases, self.weights):
+            z = np.dot(weight, activation) + bias
+            if self.activation_function == "relu":
+                activation = relu(z)
+            elif self.activation_function == "sigmoid":
+                activation = sigmoid(z)
+            if a_z_matrix:
+                z_matrix.append(z)
+                activation_matrix.append(activation)
+        
+        # Return a tuple with the output activation, z_matrix, and activation matrix
+        if a_z_matrix:
+            return activation, z_matrix, activation_matrix
+        
+        else:
+            return activation
 
 
     def train_model(self, training_data, epochs, batch_size, eta):
@@ -87,27 +103,63 @@ class NeuralNetwork():
         
         return
 
-    def backprop():
-        """Uses the backpropagation algorithm to calculate dc/db and dc/dw"""
-        raise NotImplementedError()
+    def backprop(self, input, output):
+        """Uses the backpropagation algorithm to calculate dc/db and dc/dw. 
+        Uses the four equation of backpropagation: 
+        dc/db = delta
+        dc/dw = a(m-1)delta  
+        (output layer) delta = dc/da * df/dz and f is the activation function
+        (other layers) delta = w(m+1)delta(m+1) * df/dz
+        """
+        dcdb = np.zeros(b.shape for b in self.biases)
+        dcdw = np.zeros(w.shape for w in self.weights)
+        
+        # Feed forward input to obtain zs and activations
+        activation, z_matrix, activation_matrix = self.feedforward(input, a_z_matrix=True)
+
+        # Calculate dcdb and dcdw for output layer
+        delta = cost_deriv(activation_matrix[-1], output) * activation_deriv(z_matrix[-1], self.activation_function)
+        dcdb[-1] = delta
+        dcdw [-1] = np.dot(delta, activation_matrix[-2].transpose())
+
+        # Backward propogate the erros through the neural network to obtain dcdb and dcdw for all other layers
+
+        for m in range(2, len(self.shape)):
+            z = z_matrix[-m]
+            a_deriv = activation_deriv(z)
+            delta = np.dot(self.weights[-m+1].transpose(), delta) * a_deriv
+            dcdb[-m] = delta
+            dcdw [-m] = np.dot(delta, activation_matrix[-m-1].transpose())
+        
+        return dcdb, dcdw
     
+    def evaluate(self, test_data):
+        """Returns a tuple with (count of correct predictions, % of correct predictions)"""
+        predictions = [] 
+        outputs = []
+        for input, output in test_data:
+            predictions.append(self.feedforward(input))
+            outputs.append(output)
+        correct_count = sum(int(x == y) for (x, y) in zip(predictions, outputs))
+        percent_correct = correct_count / len(test_data)
+        return correct_count, percent_correct
 
 ###ACTIVATION FUNCTIONS###
-def relu(x):
+def relu(z):
     """Relu function for x"""
-    def simple_relu(x):
-        return max(0,x)
+    def simple_relu(z):
+        return max(0,z)
     vec_relu = np.vectorize(simple_relu, otypes=[float])
-    return vec_relu(x)
+    return vec_relu(z)
 
 
-def sigmoid(x):
+def sigmoid(z):
     """Sigmoid function for x"""
-    return 1.0/(1.0+np.exp(-x))
+    return 1.0/(1.0+np.exp(-z))
 
 
 ###DERIVATIVES####
-def activation_deriv(x, activation_function):
+def activation_deriv(z, activation_function):
     """Returns the derivative of the activation function for x"""
     # Validate activation function
     if activation_function not in ["relu","sigmoid"]:
@@ -115,15 +167,15 @@ def activation_deriv(x, activation_function):
 
     # Calculate derivative
     if activation_function == "relu":
-        if x > 0:
+        if z > 0:
             return 1
         else:
             return 0
         
     if activation_function == "sigmoid":
-        return sigmoid(x)*(1-sigmoid(x))
+        return sigmoid(z)*(1-sigmoid(z))
     
 
-def cost_deriv(activation, training_output):
-    """Partial derivative of cost function with respect to the output activation"""
-    return (activation - training_output)
+def cost_deriv(activation, output):
+    """Partial derivative of quadratic cost function with respect to a particular output activation"""
+    return (activation - output)
