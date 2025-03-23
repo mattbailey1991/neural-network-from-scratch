@@ -6,7 +6,6 @@ import numpy as np
 
 class NeuralNetwork():
     
-    
     def __init__(self, shape):
         
         """Shape of the neural network, defined as an array of layer sizes. 
@@ -44,19 +43,76 @@ class NeuralNetwork():
         # Return the output activation
         return activation
 
-    def sgd():
-        """TO-DO: Trains the neural network using the stochastic gradient descent algorithm"""
-        raise NotImplementedError()
-    
+    def sgd(self, training_data, epochs, batch_size, eta):
+        """Trains the neural network using the stochastic gradient descent algorithm
+        Training data is an array of input and output vectors
+        Epochs is the number of epochs to train the model
+        Batch size is the mini batch size for each update
+        Eta is the learning rate"""
+        for i in range(epochs):
+            # Shuffle the training data to give a random sample
+            random.shuffle(training_data)
+            
+            # Split the data into batches
+            batches = []
+            for j in range(0, len(training_data), batch_size):
+                batches.append(training_data[j:j+batch_size])
+            
+            # Train the model on each batch
+            for batch in batches:
+                self.train(batch, eta)
+        
+        return
+
+    def train(self, batch, eta):
+        """Updates the network weights and biases on a batch of training examples according to the rules:
+        b <- b - eta (dc/db)
+        w <- w - eta(dc/dw)"""
+        # Run backprop on each training example to calculate dc/dw and dc/db. Keep a running sum.
+        sum_dcdb = [np.zeros(b.shape) for b in self.biases]
+        sum_dcdw = [np.zeros(w.shape) for w in self.weights]
+
+        for input, output in batch:
+            dcdb, dcdw = self.backprop(input, output)
+            sum_dcdb = [i + j for i, j in zip(sum_dcdb, dcdb)]          
+            sum_dcdw = [i + j for i, j in zip(sum_dcdw, dcdw)]          
+
+        # Update biases according to b <- b - eta (dc/db)
+        self.biases = [old_bias - (eta/len(batch)) * db for old_bias, db in zip(self.biases, sum_dcdb)]
+
+        # Update weights according to b <- b - eta (dc/db)
+        self.biases = [old_weight - (eta/len(batch)) * dw for old_weight, dw in zip(self.weights, sum_dcdw)]
+        
+        return
+
     def backprop():
         """TO-DO: Uses the backpropagation algorithm to calculate """
         raise NotImplementedError()
     
-###ACTIVATION FUNCTIONS###
-def relu(input):
-    """Relu function"""
-    return max(0, input)
 
-def sigmoid(input):
-    """Sigmoid function"""
-    return 1.0/(1.0+np.exp(-input))
+###ACTIVATION FUNCTIONS###
+def relu(x):
+    """Relu function for x"""
+    return max(0, x)
+
+
+def sigmoid(x):
+    """Sigmoid function for x"""
+    return 1.0/(1.0+np.exp(-x))
+
+
+def activation_deriv(x, activation_function):
+    """Returns the derivative of the activation function for x"""
+    # Validate activation function
+    if activation_function not in ["relu","sigmoid"]:
+        raise ValueError("Activation function must be 'relu' or 'sigmoid'")
+
+    # Calculate derivative
+    if activation_function == "relu":
+        if x > 0:
+            return 1
+        else:
+            return 0
+        
+    if activation_function == "sigmoid":
+        return sigmoid(x)*(1-sigmoid(x))
