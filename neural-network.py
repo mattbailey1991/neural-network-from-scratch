@@ -27,6 +27,7 @@ class NeuralNetwork():
         """Feeds an input through the neural network to obtain a predicted output. 
         Input shape must be (self.shape[0],1).
         Activation function can be relu or sigmoid.
+        Activation of each layer m is given by a(m) = f(wa(m-1) + b)
         Returns a shape (self.shape[-1],1) output vector"""
         # Validate activation function
         if activation_function not in ["relu","sigmoid"]:
@@ -43,7 +44,8 @@ class NeuralNetwork():
         # Return the output activation
         return activation
 
-    def sgd(self, training_data, epochs, batch_size, eta):
+
+    def train_model(self, training_data, epochs, batch_size, eta):
         """Trains the neural network using the stochastic gradient descent algorithm
         Training data is an array of input and output vectors
         Epochs is the number of epochs to train the model
@@ -60,11 +62,11 @@ class NeuralNetwork():
             
             # Train the model on each batch
             for batch in batches:
-                self.train(batch, eta)
+                self.train_batch(batch, eta)
         
         return
 
-    def train(self, batch, eta):
+    def train_batch(self, batch, eta):
         """Updates the network weights and biases on a batch of training examples according to the rules:
         b <- b - eta (dc/db)
         w <- w - eta(dc/dw)"""
@@ -86,14 +88,17 @@ class NeuralNetwork():
         return
 
     def backprop():
-        """TO-DO: Uses the backpropagation algorithm to calculate """
+        """Uses the backpropagation algorithm to calculate dc/db and dc/dw"""
         raise NotImplementedError()
     
 
 ###ACTIVATION FUNCTIONS###
 def relu(x):
     """Relu function for x"""
-    return max(0, x)
+    def simple_relu(x):
+        return max(0,x)
+    vec_relu = np.vectorize(simple_relu, otypes=[float])
+    return vec_relu(x)
 
 
 def sigmoid(x):
@@ -101,6 +106,7 @@ def sigmoid(x):
     return 1.0/(1.0+np.exp(-x))
 
 
+###DERIVATIVES####
 def activation_deriv(x, activation_function):
     """Returns the derivative of the activation function for x"""
     # Validate activation function
@@ -116,3 +122,8 @@ def activation_deriv(x, activation_function):
         
     if activation_function == "sigmoid":
         return sigmoid(x)*(1-sigmoid(x))
+    
+
+def cost_deriv(activation, training_output):
+    """Partial derivative of cost function with respect to the output activation"""
+    return (activation - training_output)
